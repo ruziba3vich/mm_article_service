@@ -82,9 +82,17 @@ func (a *ArticleService) GetArticleByID(ctx context.Context, req *article_protos
 		return nil, err
 	}
 
+	if err := a.fillArticleEntity(ctx, article, article.UserId); err != nil {
+		return nil, err
+	}
+
 	return article, nil
 }
-// func (a *ArticleService) GetArticles(context.Context, *article_protos.GetArticlesRequest) (*article_protos.GetArticlesResponse, error)
+
+// func (a *ArticleService) GetArticles(context.Context, *article_protos.GetArticlesRequest) (*article_protos.GetArticlesResponse, error) {
+
+// }
+
 // func (a *ArticleService) GetArticlesByUser(context.Context, *article_protos.GetArticlesByUserRequest) (*article_protos.GetArticlesByUserResponse, error)
 // func (a *ArticleService) LikeArticle(context.Context, *article_protos.LikeArticleRequest) (*article_protos.LikeArticleResponse, error)
 // func (a *ArticleService) RewriteArticle(context.Context, *article_protos.RewriteArticleRequest) (*article_protos.ArticleEntity, error)
