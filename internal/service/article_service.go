@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/ruziba3vich/mm_article_service/genprotos/genprotos/article_protos"
 	"github.com/ruziba3vich/mm_article_service/genprotos/genprotos/user_protos"
@@ -58,7 +59,23 @@ func (a *ArticleService) CreateArticle(ctx context.Context, req *article_protos.
 	return article, nil
 }
 
-// func (a *ArticleService) DeleteArticle(context.Context, *article_protos.DeleteArticleRequest) (*article_protos.DeleteArticleResponse, error)
+func (a *ArticleService) DeleteArticle(ctx context.Context, req *article_protos.DeleteArticleRequest) (*article_protos.DeleteArticleResponse, error) {
+	article, err := a.storage.GetArticleByID(ctx, &article_protos.GetArticleByIDRequest{ArticleId: req.ArticleId})
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch article: %s", err.Error())
+	}
+	go func() {
+		for i := range article.Files {
+			a.filesStorage.DeleteFile(ctx, article.Files[i].FileName)
+		}
+	}()
+	resp, err := a.storage.DeleteArticle(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
 // func (a *ArticleService) GetArticleByID(context.Context, *article_protos.GetArticleByIDRequest) (*article_protos.ArticleEntity, error)
 // func (a *ArticleService) GetArticles(context.Context, *article_protos.GetArticlesRequest) (*article_protos.GetArticlesResponse, error)
 // func (a *ArticleService) GetArticlesByUser(context.Context, *article_protos.GetArticlesByUserRequest) (*article_protos.GetArticlesByUserResponse, error)
