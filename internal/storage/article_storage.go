@@ -1,0 +1,234 @@
+package storage
+
+import (
+	"context"
+	"math/rand"
+	"time"
+
+	"github.com/oklog/ulid/v2"
+	"github.com/ruziba3vich/mm_article_service/genprotos/genprotos/article_protos"
+	"github.com/ruziba3vich/mm_article_service/internal/models"
+	"github.com/ruziba3vich/mm_article_service/internal/repos"
+	"google.golang.org/protobuf/types/known/timestamppb"
+	"gorm.io/gorm"
+)
+
+// articleRepository implements ArticleRepo
+type articleRepository struct {
+	db *gorm.DB
+}
+
+// NewArticleRepository creates a new articleRepository
+func NewArticleRepository(db *gorm.DB) repos.ArticleRepo {
+	return &articleRepository{db: db}
+}
+
+// CreateArticle stores a new article
+func (r *articleRepository) CreateArticle(ctx context.Context, in *article_protos.CreateArticleRequest) (*article_protos.CreateArticleResponse, error) {
+	files := make([]string, len(in.Files))
+	for i, f := range in.Files {
+		files[i] = f.Name // TODO: Service layer should provide URLs
+	}
+	article := models.Article{
+		ID:       generateULID(),
+		UserID:   in.UserId,
+		Title:    in.Title,
+		Content:  in.Content,
+		FileURLs: files,
+	}
+	if err := r.db.WithContext(ctx).Create(&article).Error; err != nil {
+		return nil, err
+	}
+	return &article_protos.CreateArticleResponse{
+		Article: &article_protos.Article{
+			Id:        article.ID,
+			UserId:    article.UserID,
+			Title:     article.Title,
+			Content:   article.Content,
+			CreatedAt: timestamppb.New(article.CreatedAt),
+			LikeCount: 0,
+		},
+	}, nil
+}
+
+// UpdateArticle updates an article
+func (r *articleRepository) UpdateArticle(ctx context.Context, in *article_protos.UpdateArticleRequest) (*article_protos.UpdateArticleResponse, error) {
+	updates := map[string]any{
+		"title":      in.Title,
+		"content":    in.Content,
+		"updated_at": time.Now(),
+	}
+	result := r.db.WithContext(ctx).Model(&models.Article{}).Where("id = ?", in.ArticleId).Updates(updates)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var article models.Article
+	if err := r.db.WithContext(ctx).Where("id = ?", in.ArticleId).First(&article).Error; err != nil {
+		return nil, err
+	}
+	return &article_protos.UpdateArticleResponse{
+		Article: &article_protos.Article{
+			Id:        article.ID,
+			UserId:    article.UserID,
+			Title:     article.Title,
+			Content:   article.Content,
+			CreatedAt: timestamppb.New(article.CreatedAt),
+			LikeCount: 0,
+		},
+	}, nil
+}
+
+// RewriteArticle stores a new article with original_article_id
+func (r *articleRepository) RewriteArticle(ctx context.Context, in *article_protos.RewriteArticleRequest) (*article_protos.RewriteArticleResponse, error) {
+	article := models.Article{
+		UserID:            in.UserId,
+		OriginalArticleID: in.OriginalArticleId,
+		Title:             in.Title,
+		Content:           in.Content,
+	}
+	if err := r.db.WithContext(ctx).Create(&article).Error; err != nil {
+		return nil, err
+	}
+	return &article_protos.RewriteArticleResponse{
+		Article: &article_protos.Article{
+			Id:                article.ID,
+			UserId:            article.UserID,
+			OriginalArticleId: article.OriginalArticleID,
+			Title:             article.Title,
+			Content:           article.Content,
+			CreatedAt:         timestamppb.New(article.CreatedAt),
+			LikeCount:         0,
+		},
+	}, nil
+}
+
+// DeleteArticle deletes an article
+func (r *articleRepository) DeleteArticle(ctx context.Context, in *article_protos.DeleteArticleRequest) (*article_protos.DeleteArticleResponse, error) {
+	result := r.db.WithContext(ctx).Where("id = ?", in.ArticleId).Delete(&models.Article{})
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &article_protos.DeleteArticleResponse{Success: true}, nil
+}
+
+// LikeArticle adds a like
+func (r *articleRepository) LikeArticle(ctx context.Context, in *article_protos.LikeArticleRequest) (*article_protos.LikeArticleResponse, error) {
+	like := models.ArticleLike{
+		UserID:    in.UserId,
+		ArticleID: in.ArticleId,
+	}
+	if err := r.db.WithContext(ctx).Create(&like).Error; err != nil {
+		return nil, err
+	}
+	return &article_protos.LikeArticleResponse{Success: true}, nil
+}
+
+// UnlikeArticle removes a like
+func (r *articleRepository) UnlikeArticle(ctx context.Context, in *article_protos.UnlikeArticleRequest) (*article_protos.UnlikeArticleResponse, error) {
+	result := r.db.WithContext(ctx).Where("user_id = ? AND article_id = ?", in.UserId, in.ArticleId).Delete(&models.ArticleLike{})
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &article_protos.UnlikeArticleResponse{Success: true}, nil
+}
+
+// GetArticlesByUser fetches articles by user
+func (r *articleRepository) GetArticlesByUser(ctx context.Context, in *article_protos.GetArticlesByUserRequest) (*article_protos.GetArticlesByUserResponse, error) {
+	var articles []models.Article
+	var totalCount int64
+	offset := (in.Pagination.Page - 1) * in.Pagination.PageSize
+	if err := r.db.WithContext(ctx).Model(&models.Article{}).Where("user_id = ?", in.UserId).Count(&totalCount).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.WithContext(ctx).Where("user_id = ?", in.UserId).
+		Offset(int(offset)).Limit(int(in.Pagination.PageSize)).Order("created_at DESC").Find(&articles).Error; err != nil {
+		return nil, err
+	}
+	protoArticles := make([]*article_protos.Article, len(articles))
+	for i, a := range articles {
+		protoArticles[i] = &article_protos.Article{
+			Id:                a.ID,
+			UserId:            a.UserID,
+			OriginalArticleId: a.OriginalArticleID,
+			Title:             a.Title,
+			Content:           a.Content,
+			CreatedAt:         timestamppb.New(a.CreatedAt),
+			LikeCount:         0,
+		}
+	}
+	return &article_protos.GetArticlesByUserResponse{
+		Pagination: &article_protos.PaginationResponse{
+			Articles:   protoArticles,
+			TotalCount: int32(totalCount),
+			Page:       in.Pagination.Page,
+			PageSize:   in.Pagination.PageSize,
+		},
+	}, nil
+}
+
+// GetArticles fetches all articles
+func (r *articleRepository) GetArticles(ctx context.Context, in *article_protos.GetArticlesRequest) (*article_protos.GetArticlesResponse, error) {
+	var articles []models.Article
+	var totalCount int64
+	offset := (in.Pagination.Page - 1) * in.Pagination.PageSize
+	if err := r.db.WithContext(ctx).Model(&models.Article{}).Count(&totalCount).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.WithContext(ctx).Offset(int(offset)).Limit(int(in.Pagination.PageSize)).Order("created_at DESC").Find(&articles).Error; err != nil {
+		return nil, err
+	}
+	protoArticles := make([]*article_protos.Article, len(articles))
+	for i, a := range articles {
+		protoArticles[i] = &article_protos.Article{
+			Id:                a.ID,
+			UserId:            a.UserID,
+			OriginalArticleId: a.OriginalArticleID,
+			Title:             a.Title,
+			Content:           a.Content,
+			CreatedAt:         timestamppb.New(a.CreatedAt),
+			LikeCount:         0,
+		}
+	}
+	return &article_protos.GetArticlesResponse{
+		Pagination: &article_protos.PaginationResponse{
+			Articles:   protoArticles,
+			TotalCount: int32(totalCount),
+			Page:       in.Pagination.Page,
+			PageSize:   in.Pagination.PageSize,
+		},
+	}, nil
+}
+
+// GetArticleByID fetches a single article
+func (r *articleRepository) GetArticleByID(ctx context.Context, in *article_protos.GetArticleByIDRequest) (*article_protos.GetArticleByIDResponse, error) {
+	var article models.Article
+	if err := r.db.WithContext(ctx).Where("id = ?", in.ArticleId).First(&article).Error; err != nil {
+		return nil, err
+	}
+	return &article_protos.GetArticleByIDResponse{
+		Article: &article_protos.Article{
+			Id:                article.ID,
+			UserId:            article.UserID,
+			OriginalArticleId: article.OriginalArticleID,
+			Title:             article.Title,
+			Content:           article.Content,
+			CreatedAt:         timestamppb.New(article.CreatedAt),
+			LikeCount:         0,
+		},
+	}, nil
+}
+
+func generateULID() string {
+	t := time.Now()
+	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+	return ulid.MustNew(ulid.Timestamp(t), entropy).String()
+}
