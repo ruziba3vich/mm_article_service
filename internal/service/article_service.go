@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ruziba3vich/mm_article_service/genprotos/genprotos/article_protos"
@@ -134,7 +135,21 @@ func (a *ArticleService) RewriteArticle(ctx context.Context, req *article_protos
 	return article, nil
 }
 
-// func (a *ArticleService) UnlikeArticle(context.Context, *article_protos.UnlikeArticleRequest) (*article_protos.ArticleEntity, error)
+func (a *ArticleService) UnlikeArticle(ctx context.Context, req *article_protos.UnlikeArticleRequest) (*article_protos.ArticleEntity, error) {
+	if liked, err := a.storage.HasUserLikedArticle(ctx, req.UserId, req.ArticleId); err != nil {
+		return nil, err
+
+	} else if !liked {
+		return nil, errors.New("you have not liked the post")
+	} else {
+		resp, err := a.UnlikeArticle(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+	}
+}
+
 // func (a *ArticleService) UpdateArticle(context.Context, *article_protos.UpdateArticleRequest) (*article_protos.ArticleEntity, error)
 
 func (a *ArticleService) fillArticleEntity(ctx context.Context, article *article_protos.ArticleEntity, userID string) error {
