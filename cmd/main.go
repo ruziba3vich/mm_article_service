@@ -114,5 +114,5 @@ func newUserServiceClient(cfg *config.Config, logger *logger.Logger) (user_proto
 }
 
 func newLogger() (*logger.Logger, error) {
-	return logger.NewLogger("app.log")
+	return logger.NewLogger("/app/logs/article_service.log")
 }
