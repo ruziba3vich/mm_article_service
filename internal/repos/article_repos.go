@@ -15,6 +15,6 @@ type ArticleRepo interface {
 	UnlikeArticle(context.Context, *article_protos.UnlikeArticleRequest) (*article_protos.UnlikeArticleResponse, error)
 	GetArticlesByUser(context.Context, *article_protos.GetArticlesByUserRequest) (*article_protos.GetArticlesByUserResponse, error)
 	GetArticles(context.Context, *article_protos.GetArticlesRequest) (*article_protos.GetArticlesResponse, error)
-	GetArticleByID(context.Context, *article_protos.GetArticleByIDRequest) (*article_protos.ArticleEntity, error)
+	GetArticleByID(context.Context, *article_protos.GetArticleByIDRequest) (*article_protos.GetArticleByIDResponse, error)
 	HasUserLikedArticle(context.Context, string, string) (bool, error)
 }

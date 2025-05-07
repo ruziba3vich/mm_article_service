@@ -73,9 +73,9 @@ func (a *ArticleService) DeleteArticle(ctx context.Context, req *article_protos.
 		return nil, fmt.Errorf("could not fetch article: %s", err.Error())
 	}
 	go func() {
-		for i := range article.Files {
-			a.filesStorage.DeleteFile(ctx, article.Files[i].FileName)
-			a.fileDbStorage.DeletePicture(ctx, article.Files[i].FileName, article.Id)
+		for i := range article.Article.Files {
+			a.filesStorage.DeleteFile(ctx, article.Article.Files[i].FileName)
+			a.fileDbStorage.DeletePicture(ctx, article.Article.Files[i].FileName, article.Article.Id)
 		}
 	}()
 	resp, err := a.storage.DeleteArticle(ctx, req)
@@ -85,13 +85,13 @@ func (a *ArticleService) DeleteArticle(ctx context.Context, req *article_protos.
 	return resp, nil
 }
 
-func (a *ArticleService) GetArticleByID(ctx context.Context, req *article_protos.GetArticleByIDRequest) (*article_protos.ArticleEntity, error) {
+func (a *ArticleService) GetArticleByID(ctx context.Context, req *article_protos.GetArticleByIDRequest) (*article_protos.GetArticleByIDResponse, error) {
 	article, err := a.storage.GetArticleByID(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	files, err := a.fileDbStorage.GetPicturesByArticle(ctx, article.Id)
+	files, err := a.fileDbStorage.GetPicturesByArticle(ctx, article.Article.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -100,13 +100,13 @@ func (a *ArticleService) GetArticleByID(ctx context.Context, req *article_protos
 		if err != nil {
 			return nil, err
 		}
-		article.Files = append(article.Files, &article_protos.FileEntity{
+		article.Article.Files = append(article.Article.Files, &article_protos.FileEntity{
 			FileName: files[i].FileName,
 			Url:      fileUrl,
 		})
 	}
 
-	if err := a.fillArticleEntity(ctx, article, article.UserId); err != nil {
+	if err := a.fillArticleEntity(ctx, article.Article, article.Article.UserId); err != nil {
 		return nil, err
 	}
 

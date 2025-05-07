@@ -196,12 +196,14 @@ func (r *articleRepository) GetArticles(ctx context.Context, in *article_protos.
 }
 
 // GetArticleByID fetches a single article
-func (r *articleRepository) GetArticleByID(ctx context.Context, in *article_protos.GetArticleByIDRequest) (*article_protos.ArticleEntity, error) {
+func (r *articleRepository) GetArticleByID(ctx context.Context, in *article_protos.GetArticleByIDRequest) (*article_protos.GetArticleByIDResponse, error) {
 	var article models.Article
 	if err := r.db.WithContext(ctx).Where("id = ?", in.ArticleId).First(&article).Error; err != nil {
 		return nil, err
 	}
-	return article.ToArticleEntity(), nil
+	return &article_protos.GetArticleByIDResponse{
+		Article: article.ToArticleEntity(),
+	}, nil
 }
 
 func generateULID() string {
