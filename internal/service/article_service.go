@@ -76,7 +76,14 @@ func (a *ArticleService) DeleteArticle(ctx context.Context, req *article_protos.
 	return resp, nil
 }
 
-// func (a *ArticleService) GetArticleByID(context.Context, *article_protos.GetArticleByIDRequest) (*article_protos.ArticleEntity, error)
+func (a *ArticleService) GetArticleByID(ctx context.Context, req *article_protos.GetArticleByIDRequest) (*article_protos.ArticleEntity, error) {
+	article, err := a.storage.GetArticleByID(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return article, nil
+}
 // func (a *ArticleService) GetArticles(context.Context, *article_protos.GetArticlesRequest) (*article_protos.GetArticlesResponse, error)
 // func (a *ArticleService) GetArticlesByUser(context.Context, *article_protos.GetArticlesByUserRequest) (*article_protos.GetArticlesByUserResponse, error)
 // func (a *ArticleService) LikeArticle(context.Context, *article_protos.LikeArticleRequest) (*article_protos.LikeArticleResponse, error)
