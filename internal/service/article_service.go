@@ -176,7 +176,7 @@ func (a *ArticleService) LikeArticle(ctx context.Context, req *article_protos.Li
 	} else if liked {
 		return nil, errors.New("you have already liked the post")
 	} else {
-		resp, err := a.LikeArticle(ctx, req)
+		resp, err := a.storage.LikeArticle(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -206,14 +206,14 @@ func (a *ArticleService) RewriteArticle(ctx context.Context, req *article_protos
 	return article, nil
 }
 
-func (a *ArticleService) UnlikeArticle(ctx context.Context, req *article_protos.UnlikeArticleRequest) (*article_protos.ArticleEntity, error) {
+func (a *ArticleService) UnlikeArticle(ctx context.Context, req *article_protos.UnlikeArticleRequest) (*article_protos.UnlikeArticleResponse, error) {
 	if liked, err := a.storage.HasUserLikedArticle(ctx, req.UserId, req.ArticleId); err != nil {
 		return nil, err
 
 	} else if !liked {
 		return nil, errors.New("you have not liked the post")
 	} else {
-		resp, err := a.UnlikeArticle(ctx, req)
+		resp, err := a.storage.UnlikeArticle(ctx, req)
 		if err != nil {
 			return nil, err
 		}
