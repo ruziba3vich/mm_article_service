@@ -12,7 +12,7 @@ func NewGORM(dsn string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = db.AutoMigrate(&models.Article{}, &models.ArticleLike{})
+	err = db.AutoMigrate(&models.Article{}, &models.ArticleLike{}, &models.Picture{})
 	if err != nil {
 		return nil, err
 	}
