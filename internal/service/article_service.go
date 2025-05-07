@@ -118,7 +118,22 @@ func (a *ArticleService) GetArticlesByUser(ctx context.Context, req *article_pro
 }
 
 // func (a *ArticleService) LikeArticle(context.Context, *article_protos.LikeArticleRequest) (*article_protos.LikeArticleResponse, error)
-// func (a *ArticleService) RewriteArticle(context.Context, *article_protos.RewriteArticleRequest) (*article_protos.ArticleEntity, error)
+func (a *ArticleService) RewriteArticle(ctx context.Context, req *article_protos.RewriteArticleRequest) (*article_protos.ArticleEntity, error) {
+	files := make([]*article_protos.FileEntity, len(req.Files))
+	for i := range req.Files {
+		fileName, url, err := a.filesStorage.CreateFile(ctx, req.Files[i].Name, req.Files[i].Content)
+		if err != nil {
+			return nil, err
+		}
+		files[i] = &article_protos.FileEntity{FileName: fileName, Url: url}
+	}
+	article, err := a.storage.RewriteArticle(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return article, nil
+}
+
 // func (a *ArticleService) UnlikeArticle(context.Context, *article_protos.UnlikeArticleRequest) (*article_protos.ArticleEntity, error)
 // func (a *ArticleService) UpdateArticle(context.Context, *article_protos.UpdateArticleRequest) (*article_protos.ArticleEntity, error)
 
