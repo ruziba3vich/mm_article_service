@@ -213,3 +213,14 @@ func generateULID() string {
 	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
 	return ulid.MustNew(ulid.Timestamp(t), entropy).String()
 }
+
+// HasUserLikedArticle checks if a user has liked an article
+func (r *articleRepository) HasUserLikedArticle(ctx context.Context, userID, articleID string) (bool, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).Model(&models.ArticleLike{}).
+		Where("user_id = ? AND article_id = ?", userID, articleID).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
