@@ -118,7 +118,21 @@ func (a *ArticleService) GetArticlesByUser(ctx context.Context, req *article_pro
 	return resp, nil
 }
 
-// func (a *ArticleService) LikeArticle(context.Context, *article_protos.LikeArticleRequest) (*article_protos.LikeArticleResponse, error)
+func (a *ArticleService) LikeArticle(ctx context.Context, req *article_protos.LikeArticleRequest) (*article_protos.LikeArticleResponse, error) {
+	if liked, err := a.storage.HasUserLikedArticle(ctx, req.UserId, req.ArticleId); err != nil {
+		return nil, err
+
+	} else if liked {
+		return nil, errors.New("you have already liked the post")
+	} else {
+		resp, err := a.LikeArticle(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+	}
+}
+
 func (a *ArticleService) RewriteArticle(ctx context.Context, req *article_protos.RewriteArticleRequest) (*article_protos.ArticleEntity, error) {
 	files := make([]*article_protos.FileEntity, len(req.Files))
 	for i := range req.Files {
