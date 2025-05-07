@@ -103,7 +103,20 @@ func (a *ArticleService) GetArticles(ctx context.Context, req *article_protos.Ge
 	return resp, nil
 }
 
-// func (a *ArticleService) GetArticlesByUser(context.Context, *article_protos.GetArticlesByUserRequest) (*article_protos.GetArticlesByUserResponse, error)
+func (a *ArticleService) GetArticlesByUser(ctx context.Context, req *article_protos.GetArticlesByUserRequest) (*article_protos.GetArticlesByUserResponse, error) {
+	resp, err := a.storage.GetArticlesByUser(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	for i := range resp.Pagination.Articles {
+		if err := a.fillArticleEntity(ctx, resp.Pagination.Articles[i], resp.Pagination.Articles[i].UserId); err != nil {
+			return nil, err
+		}
+	}
+
+	return resp, nil
+}
+
 // func (a *ArticleService) LikeArticle(context.Context, *article_protos.LikeArticleRequest) (*article_protos.LikeArticleResponse, error)
 // func (a *ArticleService) RewriteArticle(context.Context, *article_protos.RewriteArticleRequest) (*article_protos.ArticleEntity, error)
 // func (a *ArticleService) UnlikeArticle(context.Context, *article_protos.UnlikeArticleRequest) (*article_protos.ArticleEntity, error)
