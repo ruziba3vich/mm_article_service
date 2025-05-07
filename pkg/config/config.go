@@ -11,9 +11,10 @@ import (
 type (
 	// Config holds all the configuration settings
 	Config struct {
-		MinIO   *MinIOConfig
-		Redis   *RedisConfig
-		PsqlCfg *PsqlConfig
+		MinIO    *MinIOConfig
+		Redis    *RedisConfig
+		PsqlCfg  *PsqlConfig
+		GRPCPort string
 	}
 
 	PsqlConfig struct {
@@ -62,6 +63,7 @@ func LoadConfig() *Config {
 		PsqlCfg: &PsqlConfig{
 			Dsn: getEnv("DB_DSN", "host=postgres user=postgres password=secret dbname=article_service port=5432 sslmode=disable TimeZone=Asia/Tashkent"),
 		},
+		GRPCPort: getEnv("GRPC_PORT", "7878"),
 	}
 }
 
