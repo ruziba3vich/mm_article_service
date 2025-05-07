@@ -10,6 +10,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/ruziba3vich/mm_article_service/internal/repos"
+	"github.com/ruziba3vich/mm_article_service/pkg/config"
 )
 
 // minioStorage implements MinIOStorage
@@ -20,28 +21,28 @@ type MinioStorage struct {
 }
 
 // NewMinIOStorage initializes a MinIO client
-func NewMinIOStorage(endpoint, accessKey, secretKey, bucketName string, urlExpiry int64) (repos.MinIOStorage, error) {
-	client, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+func NewMinIOStorage(cfg *config.Config) (repos.MinIOStorage, error) {
+	client, err := minio.New(cfg.MinIO.Endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(cfg.MinIO.AccessKey, cfg.MinIO.SecretKey, ""),
 		Secure: false,
 	})
 	if err != nil {
 		return nil, err
 	}
-	exists, err := client.BucketExists(context.Background(), bucketName)
+	exists, err := client.BucketExists(context.Background(), cfg.MinIO.Bucket)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		err = client.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{})
+		err = client.MakeBucket(context.Background(), cfg.MinIO.Bucket, minio.MakeBucketOptions{})
 		if err != nil {
 			return nil, err
 		}
 	}
 	return &MinioStorage{
 		client:     client,
-		bucketName: bucketName,
-		urlExpiry:  urlExpiry,
+		bucketName: cfg.MinIO.Bucket,
+		urlExpiry:  int64(cfg.MinIO.UrlExpiry),
 	}, nil
 }
 
