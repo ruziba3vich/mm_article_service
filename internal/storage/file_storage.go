@@ -13,7 +13,7 @@ import (
 )
 
 // minioStorage implements MinIOStorage
-type minioStorage struct {
+type MinioStorage struct {
 	client     *minio.Client
 	bucketName string
 	urlExpiry  int64 // Seconds for presigned URL expiry
@@ -38,7 +38,7 @@ func NewMinIOStorage(endpoint, accessKey, secretKey, bucketName string, urlExpir
 			return nil, err
 		}
 	}
-	return &minioStorage{
+	return &MinioStorage{
 		client:     client,
 		bucketName: bucketName,
 		urlExpiry:  urlExpiry,
@@ -46,7 +46,7 @@ func NewMinIOStorage(endpoint, accessKey, secretKey, bucketName string, urlExpir
 }
 
 // CreateFile stores a file in MinIO
-func (s *minioStorage) CreateFile(ctx context.Context, fileName string, fileContent []byte) (string, string, error) {
+func (s *MinioStorage) CreateFile(ctx context.Context, fileName string, fileContent []byte) (string, string, error) {
 	ext := filepath.Ext(fileName)
 	generatedName := uuid.New().String() + ext
 	_, err := s.client.PutObject(ctx, s.bucketName, generatedName, bytes.NewReader(fileContent), int64(len(fileContent)), minio.PutObjectOptions{})
@@ -61,12 +61,12 @@ func (s *minioStorage) CreateFile(ctx context.Context, fileName string, fileCont
 }
 
 // DeleteFile removes a file from MinIO
-func (s *minioStorage) DeleteFile(ctx context.Context, fileName string) error {
+func (s *MinioStorage) DeleteFile(ctx context.Context, fileName string) error {
 	return s.client.RemoveObject(ctx, s.bucketName, fileName, minio.RemoveObjectOptions{})
 }
 
 // GetFileURL generates a temporary URL for a file
-func (s *minioStorage) GetFileURL(ctx context.Context, fileName string) (string, error) {
+func (s *MinioStorage) GetFileURL(ctx context.Context, fileName string) (string, error) {
 	url, err := s.client.PresignedGetObject(ctx, s.bucketName, fileName, time.Duration(s.urlExpiry)*time.Second, nil)
 	if err != nil {
 		return "", err
