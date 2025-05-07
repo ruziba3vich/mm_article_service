@@ -11,6 +11,7 @@ import (
 	"github.com/ruziba3vich/mm_article_service/internal/repos"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // articleRepository implements ArticleRepo
@@ -118,13 +119,22 @@ func (r *articleRepository) GetArticlesByUser(ctx context.Context, in *article_p
 	var articles []models.Article
 	var totalCount int64
 	offset := (in.Pagination.Page - 1) * in.Pagination.PageSize
-	if err := r.db.WithContext(ctx).Model(&models.Article{}).Where("user_id = ?", in.UserId).Count(&totalCount).Error; err != nil {
+
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"}).
+			Model(&models.Article{}).Where("user_id = ?", in.UserId).Count(&totalCount).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ?", in.UserId).
+			Offset(int(offset)).Limit(int(in.Pagination.PageSize)).Order("created_at DESC").Find(&articles).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	if err := r.db.WithContext(ctx).Where("user_id = ?", in.UserId).
-		Offset(int(offset)).Limit(int(in.Pagination.PageSize)).Order("created_at DESC").Find(&articles).Error; err != nil {
-		return nil, err
-	}
+
 	protoArticles := make([]*article_protos.ArticleEntity, len(articles))
 	for i, a := range articles {
 		protoArticles[i] = &article_protos.ArticleEntity{
@@ -152,12 +162,21 @@ func (r *articleRepository) GetArticles(ctx context.Context, in *article_protos.
 	var articles []models.Article
 	var totalCount int64
 	offset := (in.Pagination.Page - 1) * in.Pagination.PageSize
-	if err := r.db.WithContext(ctx).Model(&models.Article{}).Count(&totalCount).Error; err != nil {
+
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"}).
+			Model(&models.Article{}).Count(&totalCount).Error; err != nil {
+			return err
+		}
+		if err := tx.Offset(int(offset)).Limit(int(in.Pagination.PageSize)).Order("created_at DESC").Find(&articles).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-	if err := r.db.WithContext(ctx).Offset(int(offset)).Limit(int(in.Pagination.PageSize)).Order("created_at DESC").Find(&articles).Error; err != nil {
-		return nil, err
-	}
+
 	protoArticles := make([]*article_protos.ArticleEntity, len(articles))
 	for i, a := range articles {
 		protoArticles[i] = &article_protos.ArticleEntity{
