@@ -164,7 +164,14 @@ func (a *ArticleService) UnlikeArticle(ctx context.Context, req *article_protos.
 	}
 }
 
-// func (a *ArticleService) UpdateArticle(context.Context, *article_protos.UpdateArticleRequest) (*article_protos.ArticleEntity, error)
+func (a *ArticleService) UpdateArticle(ctx context.Context, req *article_protos.UpdateArticleRequest) (*article_protos.ArticleEntity, error) {
+	article, err := a.storage.UpdateArticle(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return article, nil
+}
 
 func (a *ArticleService) fillArticleEntity(ctx context.Context, article *article_protos.ArticleEntity, userID string) error {
 	userData, err := a.userService.GetUserData(ctx, &user_protos.GetUserDataRequest{UserId: userID})
