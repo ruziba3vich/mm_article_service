@@ -75,6 +75,7 @@ func (a *ArticleService) DeleteArticle(ctx context.Context, req *article_protos.
 	go func() {
 		for i := range article.Files {
 			a.filesStorage.DeleteFile(ctx, article.Files[i].FileName)
+			a.fileDbStorage.DeletePicture(ctx, article.Files[i].FileName, article.Id)
 		}
 	}()
 	resp, err := a.storage.DeleteArticle(ctx, req)
@@ -88,6 +89,21 @@ func (a *ArticleService) GetArticleByID(ctx context.Context, req *article_protos
 	article, err := a.storage.GetArticleByID(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+
+	files, err := a.fileDbStorage.GetPicturesByArticle(ctx, article.Id)
+	if err != nil {
+		return nil, err
+	}
+	for i := range files {
+		fileUrl, err := a.filesStorage.GetFileURL(ctx, files[i].FileName)
+		if err != nil {
+			return nil, err
+		}
+		article.Files = append(article.Files, &article_protos.FileEntity{
+			FileName: files[i].FileName,
+			Url:      fileUrl,
+		})
 	}
 
 	if err := a.fillArticleEntity(ctx, article, article.UserId); err != nil {
@@ -106,6 +122,20 @@ func (a *ArticleService) GetArticles(ctx context.Context, req *article_protos.Ge
 		if err := a.fillArticleEntity(ctx, resp.Pagination.Articles[i], resp.Pagination.Articles[i].UserId); err != nil {
 			return nil, err
 		}
+		files, err := a.fileDbStorage.GetPicturesByArticle(ctx, resp.Pagination.Articles[i].Id)
+		if err != nil {
+			return nil, err
+		}
+		for j := range files {
+			fileUrl, err := a.filesStorage.GetFileURL(ctx, files[j].FileName)
+			if err != nil {
+				return nil, err
+			}
+			resp.Pagination.Articles[i].Files = append(resp.Pagination.Articles[i].Files, &article_protos.FileEntity{
+				FileName: files[j].FileName,
+				Url:      fileUrl,
+			})
+		}
 	}
 
 	return resp, nil
@@ -119,6 +149,20 @@ func (a *ArticleService) GetArticlesByUser(ctx context.Context, req *article_pro
 	for i := range resp.Pagination.Articles {
 		if err := a.fillArticleEntity(ctx, resp.Pagination.Articles[i], resp.Pagination.Articles[i].UserId); err != nil {
 			return nil, err
+		}
+		files, err := a.fileDbStorage.GetPicturesByArticle(ctx, resp.Pagination.Articles[i].Id)
+		if err != nil {
+			return nil, err
+		}
+		for j := range files {
+			fileUrl, err := a.filesStorage.GetFileURL(ctx, files[j].FileName)
+			if err != nil {
+				return nil, err
+			}
+			resp.Pagination.Articles[i].Files = append(resp.Pagination.Articles[i].Files, &article_protos.FileEntity{
+				FileName: files[j].FileName,
+				Url:      fileUrl,
+			})
 		}
 	}
 
@@ -141,6 +185,10 @@ func (a *ArticleService) LikeArticle(ctx context.Context, req *article_protos.Li
 }
 
 func (a *ArticleService) RewriteArticle(ctx context.Context, req *article_protos.RewriteArticleRequest) (*article_protos.ArticleEntity, error) {
+	article, err := a.storage.RewriteArticle(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	files := make([]*article_protos.FileEntity, len(req.Files))
 	for i := range req.Files {
 		fileName, url, err := a.filesStorage.CreateFile(ctx, req.Files[i].Name, req.Files[i].Content)
@@ -148,10 +196,12 @@ func (a *ArticleService) RewriteArticle(ctx context.Context, req *article_protos
 			return nil, err
 		}
 		files[i] = &article_protos.FileEntity{FileName: fileName, Url: url}
-	}
-	article, err := a.storage.RewriteArticle(ctx, req)
-	if err != nil {
-		return nil, err
+		if err := a.fileDbStorage.CreatePicture(ctx, &models.Picture{
+			FileName:  fileName,
+			ArticleID: article.Id,
+		}); err != nil {
+			return nil, err
+		}
 	}
 	return article, nil
 }
