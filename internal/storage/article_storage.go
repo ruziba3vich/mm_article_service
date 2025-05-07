@@ -24,35 +24,26 @@ func NewArticleRepository(db *gorm.DB) repos.ArticleRepo {
 }
 
 // CreateArticle stores a new article
-func (r *articleRepository) CreateArticle(ctx context.Context, in *article_protos.CreateArticleRequest) (*article_protos.CreateArticleResponse, error) {
+func (r *articleRepository) CreateArticle(ctx context.Context, in *article_protos.CreateArticleRequest) (*article_protos.ArticleEntity, error) {
 	files := make([]string, len(in.Files))
 	for i, f := range in.Files {
 		files[i] = f.Name // TODO: Service layer should provide URLs
 	}
 	article := models.Article{
-		ID:       generateULID(),
-		UserID:   in.UserId,
-		Title:    in.Title,
-		Content:  in.Content,
-		FileURLs: files,
+		ID:      generateULID(),
+		UserID:  in.UserId,
+		Title:   in.Title,
+		Content: in.Content,
 	}
 	if err := r.db.WithContext(ctx).Create(&article).Error; err != nil {
 		return nil, err
 	}
-	return &article_protos.CreateArticleResponse{
-		Article: &article_protos.Article{
-			Id:        article.ID,
-			UserId:    article.UserID,
-			Title:     article.Title,
-			Content:   article.Content,
-			CreatedAt: timestamppb.New(article.CreatedAt),
-			LikeCount: 0,
-		},
-	}, nil
+
+	return article.ToArticleEntity(), nil
 }
 
 // UpdateArticle updates an article
-func (r *articleRepository) UpdateArticle(ctx context.Context, in *article_protos.UpdateArticleRequest) (*article_protos.UpdateArticleResponse, error) {
+func (r *articleRepository) UpdateArticle(ctx context.Context, in *article_protos.UpdateArticleRequest) (*article_protos.ArticleEntity, error) {
 	updates := map[string]any{
 		"title":      in.Title,
 		"content":    in.Content,
@@ -69,20 +60,11 @@ func (r *articleRepository) UpdateArticle(ctx context.Context, in *article_proto
 	if err := r.db.WithContext(ctx).Where("id = ?", in.ArticleId).First(&article).Error; err != nil {
 		return nil, err
 	}
-	return &article_protos.UpdateArticleResponse{
-		Article: &article_protos.Article{
-			Id:        article.ID,
-			UserId:    article.UserID,
-			Title:     article.Title,
-			Content:   article.Content,
-			CreatedAt: timestamppb.New(article.CreatedAt),
-			LikeCount: 0,
-		},
-	}, nil
+	return article.ToArticleEntity(), nil
 }
 
 // RewriteArticle stores a new article with original_article_id
-func (r *articleRepository) RewriteArticle(ctx context.Context, in *article_protos.RewriteArticleRequest) (*article_protos.RewriteArticleResponse, error) {
+func (r *articleRepository) RewriteArticle(ctx context.Context, in *article_protos.RewriteArticleRequest) (*article_protos.ArticleEntity, error) {
 	article := models.Article{
 		UserID:            in.UserId,
 		OriginalArticleID: in.OriginalArticleId,
@@ -92,17 +74,7 @@ func (r *articleRepository) RewriteArticle(ctx context.Context, in *article_prot
 	if err := r.db.WithContext(ctx).Create(&article).Error; err != nil {
 		return nil, err
 	}
-	return &article_protos.RewriteArticleResponse{
-		Article: &article_protos.Article{
-			Id:                article.ID,
-			UserId:            article.UserID,
-			OriginalArticleId: article.OriginalArticleID,
-			Title:             article.Title,
-			Content:           article.Content,
-			CreatedAt:         timestamppb.New(article.CreatedAt),
-			LikeCount:         0,
-		},
-	}, nil
+	return article.ToArticleEntity(), nil
 }
 
 // DeleteArticle deletes an article
@@ -153,16 +125,16 @@ func (r *articleRepository) GetArticlesByUser(ctx context.Context, in *article_p
 		Offset(int(offset)).Limit(int(in.Pagination.PageSize)).Order("created_at DESC").Find(&articles).Error; err != nil {
 		return nil, err
 	}
-	protoArticles := make([]*article_protos.Article, len(articles))
+	protoArticles := make([]*article_protos.ArticleEntity, len(articles))
 	for i, a := range articles {
-		protoArticles[i] = &article_protos.Article{
+		protoArticles[i] = &article_protos.ArticleEntity{
 			Id:                a.ID,
 			UserId:            a.UserID,
 			OriginalArticleId: a.OriginalArticleID,
 			Title:             a.Title,
 			Content:           a.Content,
 			CreatedAt:         timestamppb.New(a.CreatedAt),
-			LikeCount:         0,
+			LikeCount:         int32(a.LikesCount),
 		}
 	}
 	return &article_protos.GetArticlesByUserResponse{
@@ -186,16 +158,16 @@ func (r *articleRepository) GetArticles(ctx context.Context, in *article_protos.
 	if err := r.db.WithContext(ctx).Offset(int(offset)).Limit(int(in.Pagination.PageSize)).Order("created_at DESC").Find(&articles).Error; err != nil {
 		return nil, err
 	}
-	protoArticles := make([]*article_protos.Article, len(articles))
+	protoArticles := make([]*article_protos.ArticleEntity, len(articles))
 	for i, a := range articles {
-		protoArticles[i] = &article_protos.Article{
+		protoArticles[i] = &article_protos.ArticleEntity{
 			Id:                a.ID,
 			UserId:            a.UserID,
 			OriginalArticleId: a.OriginalArticleID,
 			Title:             a.Title,
 			Content:           a.Content,
 			CreatedAt:         timestamppb.New(a.CreatedAt),
-			LikeCount:         0,
+			LikeCount:         int32(a.LikesCount),
 		}
 	}
 	return &article_protos.GetArticlesResponse{
@@ -209,22 +181,12 @@ func (r *articleRepository) GetArticles(ctx context.Context, in *article_protos.
 }
 
 // GetArticleByID fetches a single article
-func (r *articleRepository) GetArticleByID(ctx context.Context, in *article_protos.GetArticleByIDRequest) (*article_protos.GetArticleByIDResponse, error) {
+func (r *articleRepository) GetArticleByID(ctx context.Context, in *article_protos.GetArticleByIDRequest) (*article_protos.ArticleEntity, error) {
 	var article models.Article
 	if err := r.db.WithContext(ctx).Where("id = ?", in.ArticleId).First(&article).Error; err != nil {
 		return nil, err
 	}
-	return &article_protos.GetArticleByIDResponse{
-		Article: &article_protos.Article{
-			Id:                article.ID,
-			UserId:            article.UserID,
-			OriginalArticleId: article.OriginalArticleID,
-			Title:             article.Title,
-			Content:           article.Content,
-			CreatedAt:         timestamppb.New(article.CreatedAt),
-			LikeCount:         0,
-		},
-	}, nil
+	return article.ToArticleEntity(), nil
 }
 
 func generateULID() string {
