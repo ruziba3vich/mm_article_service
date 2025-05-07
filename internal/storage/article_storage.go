@@ -26,10 +26,6 @@ func NewArticleRepository(db *gorm.DB) repos.ArticleRepo {
 
 // CreateArticle stores a new article
 func (r *articleRepository) CreateArticle(ctx context.Context, in *article_protos.CreateArticleRequest) (*article_protos.ArticleEntity, error) {
-	files := make([]string, len(in.Files))
-	for i, f := range in.Files {
-		files[i] = f.Name // TODO: Service layer should provide URLs
-	}
 	article := models.Article{
 		ID:      generateULID(),
 		UserID:  in.UserId,
