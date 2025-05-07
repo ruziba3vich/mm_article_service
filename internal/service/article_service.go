@@ -7,6 +7,7 @@ import (
 
 	"github.com/ruziba3vich/mm_article_service/genprotos/genprotos/article_protos"
 	"github.com/ruziba3vich/mm_article_service/genprotos/genprotos/user_protos"
+	"github.com/ruziba3vich/mm_article_service/internal/models"
 	"github.com/ruziba3vich/mm_article_service/internal/repos"
 	logger "github.com/ruziba3vich/prodonik_lgger"
 )
@@ -16,25 +17,32 @@ type (
 		storage repos.ArticleRepo
 		logger  *logger.Logger
 		article_protos.UnimplementedArticleServiceServer
-		filesStorage repos.MinIOStorage
-		userService  user_protos.UserServiceClient
+		filesStorage  repos.MinIOStorage
+		userService   user_protos.UserServiceClient
+		fileDbStorage repos.PictureRepo
 	}
 )
 
 func NewArticleService(storage repos.ArticleRepo,
 	logger *logger.Logger,
 	filesStorage repos.MinIOStorage,
-	userService user_protos.UserServiceClient) *ArticleService {
+	userService user_protos.UserServiceClient,
+	fileDbStorage repos.PictureRepo) *ArticleService {
 	return &ArticleService{
-		logger:       logger,
-		filesStorage: filesStorage,
-		userService:  userService,
-		storage:      storage,
+		logger:        logger,
+		filesStorage:  filesStorage,
+		userService:   userService,
+		storage:       storage,
+		fileDbStorage: fileDbStorage,
 	}
 }
 
 func (a *ArticleService) CreateArticle(ctx context.Context, req *article_protos.CreateArticleRequest) (*article_protos.ArticleEntity, error) {
 
+	article, err := a.storage.CreateArticle(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 	files := make([]*article_protos.FileEntity, len(req.Files))
 
 	for i := range req.Files {
@@ -46,10 +54,9 @@ func (a *ArticleService) CreateArticle(ctx context.Context, req *article_protos.
 			FileName: fileName,
 			Url:      url,
 		}
-	}
-	article, err := a.storage.CreateArticle(ctx, req)
-	if err != nil {
-		return nil, err
+		if err := a.fileDbStorage.CreatePicture(ctx, &models.Picture{FileName: fileName, ArticleID: article.Id}); err != nil {
+			return nil, err
+		}
 	}
 	article.Files = files
 	if err := a.fillArticleEntity(ctx, article, req.UserId); err != nil {
