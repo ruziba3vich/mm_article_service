@@ -25,7 +25,8 @@ type (
 	}
 
 	Picture struct {
-		FileName string `gorm:"not null"`
+		FileName  string `gorm:"not null"`
+		ArticleID string `gorm:"not null"`
 	}
 )
 
