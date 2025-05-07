@@ -12,6 +12,6 @@ mkdir -p $OUT_DIR
 protoc -I=$PROTO_DIR \
   --go_out=$OUT_DIR \
   --go-grpc_out=$OUT_DIR \
-  $PROTO_DIR/protos/article_protos.proto
+  $PROTO_DIR/article_protos/article.proto
 
 echo "protos generated successfully"
