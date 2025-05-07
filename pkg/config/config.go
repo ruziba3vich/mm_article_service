@@ -26,6 +26,7 @@ type (
 		AccessKey string
 		SecretKey string
 		Bucket    string
+		UrlExpiry int
 	}
 
 	// RedisConfig holds Redis settings
@@ -50,6 +51,7 @@ func LoadConfig() *Config {
 			AccessKey: getEnv("MINIO_ACCESS_KEY", "admin"),
 			SecretKey: getEnv("MINIO_SECRET_KEY", "secretpass"),
 			Bucket:    getEnv("MINIO_BUCKET", "mediumlike"),
+			UrlExpiry: getEnvInt("MINIO_URL_EXPIRY", 3_600),
 		},
 		Redis: &RedisConfig{
 			Host:     getEnv("REDIS_HOST", "localhost"),
