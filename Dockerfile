@@ -17,8 +17,6 @@ WORKDIR /app
 
 COPY --from=builder /app/article_service .
 
-COPY .env .env
-
 EXPOSE 7878
 
 CMD ["./article_service"]
