@@ -180,14 +180,46 @@ func (r *articleRepository) UnlikeArticle(ctx context.Context, in *article_proto
 		return nil, status.Error(codes.InvalidArgument, "user_id and article_id are required")
 	}
 
-	result := r.db.WithContext(ctx).Where("user_id = ? AND article_id = ?", in.UserId, in.ArticleId).Delete(&models.ArticleLike{})
-	if result.Error != nil {
-		return nil, status.Errorf(codes.Internal, "failed to remove like: %v", result.Error)
+	var article models.Article
+	if err := r.db.WithContext(ctx).Where("id = ?", in.ArticleId).First(&article).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, status.Error(codes.NotFound, "article not found")
+		}
+		return nil, status.Errorf(codes.Internal, "failed to verify article: %v", err)
 	}
-	if result.RowsAffected == 0 {
-		return nil, status.Error(codes.NotFound, "like not found")
+
+	const maxRetries = 3 // TODO: get this value from config
+	for i := 0; i < maxRetries; i++ {
+		err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			result := tx.Where("user_id = ? AND article_id = ?", in.UserId, in.ArticleId).Delete(&models.ArticleLike{})
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return status.Error(codes.NotFound, "like not found")
+			}
+
+			update := tx.Model(&models.Article{}).
+				Where("id = ? AND version = ?", in.ArticleId, article.Version).
+				Updates(map[string]interface{}{
+					"likes_count": gorm.Expr("likes_count - 1"),
+					"version":     gorm.Expr("version + 1"),
+				})
+
+			if update.Error != nil {
+				return update.Error
+			}
+			if update.RowsAffected == 0 {
+				return errors.New("concurrent update, retrying")
+			}
+			return nil
+		})
+		if err == nil {
+			return &article_protos.UnlikeArticleResponse{Success: true}, nil
+		}
 	}
-	return &article_protos.UnlikeArticleResponse{Success: true}, nil
+
+	return nil, status.Error(codes.Aborted, "failed to unlike article after retries")
 }
 
 // GetArticlesByUser fetches articles by user
