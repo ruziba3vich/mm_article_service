@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -123,7 +124,6 @@ func (r *articleRepository) LikeArticle(ctx context.Context, in *article_protos.
 		return nil, status.Error(codes.InvalidArgument, "user_id and article_id are required")
 	}
 
-	// Check if the article exists
 	var article models.Article
 	if err := r.db.WithContext(ctx).Where("id = ?", in.ArticleId).First(&article).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -132,7 +132,6 @@ func (r *articleRepository) LikeArticle(ctx context.Context, in *article_protos.
 		return nil, status.Errorf(codes.Internal, "failed to verify article: %v", err)
 	}
 
-	// Check if already liked
 	hasLiked, err := r.HasUserLikedArticle(ctx, in.UserId, in.ArticleId)
 	if err != nil {
 		return nil, err
@@ -141,14 +140,38 @@ func (r *articleRepository) LikeArticle(ctx context.Context, in *article_protos.
 		return nil, status.Error(codes.AlreadyExists, "user has already liked this article")
 	}
 
-	like := models.ArticleLike{
-		UserID:    in.UserId,
-		ArticleID: in.ArticleId,
+	const maxRetries = 3 // TODO: get this value from config
+	for i := 0; i < maxRetries; i++ {
+		err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			like := models.ArticleLike{
+				UserID:    in.UserId,
+				ArticleID: in.ArticleId,
+			}
+			if err := tx.Create(&like).Error; err != nil {
+				return err
+			}
+
+			result := tx.Model(&models.Article{}).
+				Where("id = ? AND version = ?", in.ArticleId, article.Version).
+				Updates(map[string]any{
+					"likes_count": gorm.Expr("likes_count + 1"),
+					"version":     gorm.Expr("version + 1"),
+				})
+
+			if result.Error != nil {
+				return result.Error
+			}
+			if result.RowsAffected == 0 {
+				return errors.New("concurrent update, retrying")
+			}
+			return nil
+		})
+		if err == nil {
+			return &article_protos.LikeArticleResponse{Success: true}, nil
+		}
 	}
-	if err := r.db.WithContext(ctx).Create(&like).Error; err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to create like: %v", err)
-	}
-	return &article_protos.LikeArticleResponse{Success: true}, nil
+
+	return nil, status.Errorf(codes.Aborted, "failed to like article after retries: %v", err)
 }
 
 // UnlikeArticle removes a like
