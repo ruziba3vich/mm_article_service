@@ -11,11 +11,12 @@ type (
 	Article struct {
 		ID                string    `gorm:"primaryKey;type:uuid;"`
 		UserID            string    `gorm:"type:uuid;not null"`
-		OriginalArticleID string    `gorm:"type:uuid"`
+		OriginalArticleID string    `gorm:"type:uuid;default:null"`
 		Title             string    `gorm:"not null"`
 		Content           string    `gorm:"not null"`
 		CreatedAt         time.Time `gorm:"autoCreateTime"`
 		LikesCount        int       `gorm:"not null;default:0"`
+		Version           uint      `gorm:"default:1"`
 	}
 
 	ArticleLike struct {
