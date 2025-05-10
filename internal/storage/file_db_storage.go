@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ruziba3vich/mm_article_service/internal/models"
+	"github.com/ruziba3vich/mm_article_service/internal/repos"
 	"gorm.io/gorm"
 )
 
@@ -17,7 +18,7 @@ func (r *FileDbStorage) CreatePicture(ctx context.Context, picture *models.Pictu
 	return r.db.WithContext(ctx).Create(picture).Error
 }
 
-func NewFileDbStorage(db *gorm.DB) *FileDbStorage {
+func NewFileDbStorage(db *gorm.DB) repos.PictureRepo {
 	return &FileDbStorage{
 		db: db,
 	}
