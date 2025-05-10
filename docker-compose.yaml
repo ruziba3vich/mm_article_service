@@ -17,7 +17,7 @@ services:
       - REDIS_PASSWORD=
       - REDIS_DB=0
       - GRPC_PORT=7878
-      - USER_SERVICE=217.76.51.104:7171
+      - USER_SERVICE=217.76.51.104:7373
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,10 +56,10 @@ services:
     environment:
       MINIO_ROOT_USER: admin
       MINIO_ROOT_PASSWORD: secretpass
-    command: server /data --console-address ":9001"
+    command: server /data --console-address ":9091"
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9090:9000"
+      - "9091:9001"
     volumes:
       - minio_data:/data
     networks:
