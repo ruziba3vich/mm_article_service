@@ -6,8 +6,8 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.34.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/k0kubun/pp v3.0.1+incompatible
 	github.com/minio/minio-go/v7 v7.0.91
-	github.com/oklog/ulid/v2 v2.1.0
 	github.com/ruziba3vich/prodonik_lgger v1.0.0
 	go.uber.org/fx v1.23.0
 	google.golang.org/grpc v1.72.0
@@ -30,8 +30,11 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
+	github.com/mattn/go-colorable v0.1.14 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/minio/crc64nvme v1.0.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/paulmach/orb v0.11.1 // indirect

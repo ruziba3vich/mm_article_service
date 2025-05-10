@@ -106,7 +106,7 @@ func registerHooks(
 func newUserServiceClient(cfg *config.Config, logger *logger.Logger) (user_protos.UserServiceClient, error) {
 	conn, err := grpc.NewClient(cfg.UserService, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		logger.Error("Failed to connect to Python Executor Service", map[string]any{"error": err})
+		logger.Error("Failed to connect to User Service", map[string]any{"error": err})
 		return nil, err
 	}
 	logger.Info("Connected to gRPC service", map[string]any{"address": cfg.UserService})
@@ -114,5 +114,5 @@ func newUserServiceClient(cfg *config.Config, logger *logger.Logger) (user_proto
 }
 
 func newLogger() (*logger.Logger, error) {
-	return logger.NewLogger("/app/logs/article_service.log")
+	return logger.NewLogger("/app/article_service.log")
 }
