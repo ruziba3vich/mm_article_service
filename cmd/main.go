@@ -57,7 +57,7 @@ func registerHooks(
 ) {
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			log.Println("Starting logging service...")
+			log.Println("Starting article service...")
 
 			listener, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPCPort))
 			if err != nil {
@@ -72,11 +72,11 @@ func registerHooks(
 				}
 			}()
 
-			log.Println("Logging service started")
+			log.Println("Article service started")
 			return nil
 		},
 		OnStop: func(context.Context) error {
-			log.Println("Stopping logging service...")
+			log.Println("Stopping article service...")
 
 			grpcServer.GracefulStop()
 			sqlDB, err := db.DB()
@@ -88,7 +88,7 @@ func registerHooks(
 				log.Printf("Error closing database connection: %v", err)
 			}
 
-			log.Println("Logging service stopped")
+			log.Println("Article service stopped")
 			return nil
 		},
 	})
