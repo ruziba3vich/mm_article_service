@@ -65,7 +65,7 @@ func LoadConfig() *Config {
 			Dsn: getEnv("DB_DSN", "host=postgres user=postgres password=secret dbname=article_service port=5432 sslmode=disable TimeZone=Asia/Tashkent"),
 		},
 		GRPCPort:    getEnv("GRPC_PORT", "7878"),
-		UserService: getEnv("USER_SERVICE", "217.76.51.104:7171"),
+		UserService: getEnv("USER_SERVICE", "mm_user_service-app:7373"),
 	}
 }
 
